@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CameraCapture from '@/components/CameraCapture';
 import { Loader2, CheckCircle2, ChevronLeft } from 'lucide-react';
-import removeBackground from '@imgly/background-removal';
+import { removeBackground } from '@imgly/background-removal';
 import { useAuth } from '@/context/AuthContext';
 import { uploadClothingItem } from '@/lib/firebaseUtils';
 
