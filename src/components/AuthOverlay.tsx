@@ -70,9 +70,13 @@ const AuthOverlay = () => {
           </button>
         )}
         
-        <p style={{ fontSize: '12px', marginTop: '24px', opacity: 0.4 }}>
+        <p style={{ marginTop: '20px', fontSize: '10px', opacity: 0.3 }}>
           Continuando accetti i termini di servizio e la privacy policy.
         </p>
+        <div style={{ marginTop: '10px', fontSize: '8px', opacity: 0.2 }}>
+          Debug: {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "Conf_OK" : "Conf_Missing"} 
+          ({process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "No_ID"})
+        </div>
       </div>
     </div>
   );
