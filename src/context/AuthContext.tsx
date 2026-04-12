@@ -2,9 +2,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   onAuthStateChanged, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider, 
-  signOut, 
+  signOut,
   User 
 } from 'firebase/auth';
 import { auth } from '@/lib/firebaseConfig';
@@ -27,15 +28,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(user);
       setLoading(false);
     });
+
+    // Gestione del risultato del redirect
+    getRedirectResult(auth).catch((error) => {
+      console.error("Errore redirect:", error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        alert("Errore Login: " + error.message);
+      }
+    });
+
     return () => unsubscribe();
   }, []);
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
+      await signInWithRedirect(auth, provider);
+    } catch (error: any) {
       console.error("Errore login Google:", error);
+      alert("Errore avvio login: " + error.message);
     }
   };
 
