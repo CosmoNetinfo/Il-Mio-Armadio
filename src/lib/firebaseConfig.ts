@@ -13,6 +13,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
+// Validazione diagnostica
+if (typeof window !== "undefined" && !firebaseConfig.apiKey) {
+  console.error("ERRORE: Chiavi Firebase mancanti! Controlla le Environment Variables su Vercel e rifai il deploy.");
+}
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
