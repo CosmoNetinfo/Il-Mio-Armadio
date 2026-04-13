@@ -1,0 +1,21 @@
+{
+  "name": "Il Mio Armadio",
+  "short_name": "Armadio",
+  "description": "Il tuo guardaroba virtuale",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d12",
+  "theme_color": "#7c4dff",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
