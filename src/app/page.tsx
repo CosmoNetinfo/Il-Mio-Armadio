@@ -1,11 +1,12 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Save, Camera, Check, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebaseConfig';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 import { saveOutfit } from '@/lib/firebaseUtils';
+import Link from 'next/link';
 
 interface ClothingItem {
   id: string;
