@@ -16,7 +16,7 @@ interface ClothingItem {
 
 export default function Home() {
   const { user } = useAuth();
-  const [clothes, setClothes] = React.useState<Record<string, ClothingItem[]>>({
+  const [clothes, setClothes] = useState<Record<string, ClothingItem[]>>({
     tops: [],
     bottoms: [],
     shoes: [],
@@ -39,7 +39,7 @@ export default function Home() {
     shoes: { x: 0, y: 0, scale: 1 }
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!user) return;
 
     // Fetch Avatar from Profile
