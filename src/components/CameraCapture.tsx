@@ -33,8 +33,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
       const s = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: facingMode,
-          width: { ideal: 1920 }, // Alziamo la qualità per lo zoom digitale
-          height: { ideal: 1080 }
+          // Massima Risoluzione possibile (4K ideale)
+          width: { ideal: 3840 }, 
+          height: { ideal: 2160 }
         }, 
         audio: false 
       });
@@ -108,6 +109,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
         
         canvas.width = vW;
         canvas.height = vH;
+        
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
 
         if (isNativeZoomSupported) {
           // Se lo zoom è nativo, disegnamo tutto il frame
@@ -128,7 +132,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
             setCapturedBlob(blob);
             setCapturedImage(URL.createObjectURL(blob));
           }
-        }, 'image/jpeg', 0.95);
+        }, 'image/jpeg', 1.0);
       }
     }
   };

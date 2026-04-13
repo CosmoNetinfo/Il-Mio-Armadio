@@ -6,8 +6,11 @@ import { AuthProvider } from "@/context/AuthContext";
 import AuthOverlay from "@/components/AuthOverlay";
 
 export const metadata: Metadata = {
-  title: "IL MIO ARMADIO - Virtual Closet",
-  description: "Il tuo guardaroba virtuale sempre con te",
+  title: "Il Mio Armadio - Virtual Closet",
+  description: "Organizza il tuo armadio e prova i vestiti virtualmente",
+  icons: {
+    icon: '/favicon.png',
+  },
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
 };
 
