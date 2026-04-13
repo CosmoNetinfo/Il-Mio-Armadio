@@ -17,16 +17,33 @@ const AvatarSilhouette = () => {
         zIndex: 10
       }}
     >
-      {/* Head */}
-      <circle cx="100" cy="50" r="30" stroke="white" strokeWidth="2" strokeDasharray="5 5" />
-      {/* Torso */}
-      <path d="M70 85 C 70 85, 40 100, 30 180 L 170 180 C 160 100, 130 85, 130 85" stroke="white" strokeWidth="2" strokeDasharray="5 5" />
-      {/* Arms (A-pose) */}
-      <path d="M40 100 L 10 250" stroke="white" strokeWidth="2" strokeDasharray="5 5" />
-      {/* Legs */}
-      <path d="M70 250 L 70 380 M 130 250 L 130 380" stroke="white" strokeWidth="2" strokeDasharray="5 5" />
-      {/* Guidelines for hips */}
-      <path d="M70 250 Q 100 240, 130 250" stroke="white" strokeWidth="1" strokeDasharray="5 5" />
+      {/* Corpo principale - Linea sottile ed elegante */}
+      <path 
+        d="M100 20 C 115 20, 130 35, 130 55 C 130 75, 115 90, 100 90 C 85 90, 70 75, 70 55 C 70 35, 85 20, 100 20 Z" 
+        stroke="white" 
+        strokeWidth="1.5" 
+        opacity="0.8"
+      />
+      <path 
+        d="M60 100 C 40 100, 30 140, 30 180 C 30 220, 45 240, 70 240 L 130 240 C 155 240, 170 220, 170 180 C 170 140, 160 100, 140 100 Z" 
+        stroke="white" 
+        strokeWidth="1.5" 
+        opacity="0.8"
+      />
+      <path 
+        d="M75 240 L 70 380 M 125 240 L 130 380" 
+        stroke="white" 
+        strokeWidth="1.5" 
+        opacity="0.8"
+      />
+      
+      {/* Glow effect */}
+      <defs>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
     </svg>
   );
 };

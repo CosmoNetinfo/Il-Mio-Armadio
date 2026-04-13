@@ -160,13 +160,25 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
               style={{ 
                 width: '100%', 
                 height: '100%', 
-                objectFit: 'cover',
+                objectFit: 'contain', // Cambiato da 'cover' a 'contain' per vedere tutto
+                backgroundColor: '#000',
                 // Zoom Digitale visivo (se non supportato nativamente)
                 transform: !isNativeZoomSupported ? `scale(${zoom})` : 'scale(1)',
                 transition: 'transform 0.1s ease-out'
               }} 
             />
-            <AvatarSilhouette />
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              pointerEvents: 'none'
+            }}>
+              <div style={{ width: '80%', height: '80%', position: 'relative' }}>
+                 <AvatarSilhouette />
+              </div>
+            </div>
             
             {/* Cursore Zoom */}
             <div style={{
