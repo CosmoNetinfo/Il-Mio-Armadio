@@ -4,6 +4,8 @@ import {
   onAuthStateChanged, 
   signInWithRedirect,
   getRedirectResult,
+  setPersistence,
+  browserLocalPersistence,
   GoogleAuthProvider, 
   signOut,
   User 
@@ -24,20 +26,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
+    // Configura la persistenza locale
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          setUser(user);
+          setLoading(false);
+        });
 
-    // Gestione del risultato del redirect
-    getRedirectResult(auth).catch((error) => {
-      console.error("Errore redirect:", error);
-      if (error.code !== 'auth/popup-closed-by-user') {
-        alert("Errore Login: " + error.message);
-      }
-    });
+        // Gestione del risultato del redirect
+        getRedirectResult(auth)
+          .then((result) => {
+            if (result?.user) {
+              setUser(result.user);
+            }
+          })
+          .catch((error) => {
+            console.error("Errore redirect:", error);
+            if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+              alert("Errore Login: " + error.message);
+            }
+          });
 
-    return () => unsubscribe();
+        return () => unsubscribe();
+      })
+      .catch((error) => {
+        console.error("Errore persistenza:", error);
+      });
   }, []);
 
   const loginWithGoogle = async () => {

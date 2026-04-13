@@ -17,7 +17,19 @@ const AuthOverlay = () => {
         alignItems: 'center',
         zIndex: 5000
       }}>
-        <div style={{ width: '40px', height: '40px', border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div style={{ position: 'relative' }}>
+          <div style={{ width: '50px', height: '50px', border: '3px solid rgba(255,255,255,0.1)', borderRadius: '50%' }} />
+          <div style={{ 
+            position: 'absolute',
+            top: 0,
+            width: '50px', 
+            height: '50px', 
+            border: '3px solid var(--primary)', 
+            borderTopColor: 'transparent', 
+            borderRadius: '50%', 
+            animation: 'spin 1s linear infinite' 
+          }} />
+        </div>
         <style jsx>{` @keyframes spin { 100% { transform: rotate(360deg); } } `}</style>
       </div>
     );
@@ -52,30 +64,11 @@ const AuthOverlay = () => {
           Accedi con Google
         </button>
 
-        {process.env.NODE_ENV === 'development' && (
-          <button 
-            onClick={() => { /* Logic to bypass or set a fake user */ }}
-            style={{ 
-              width: '100%', 
-              background: 'transparent', 
-              border: '1px solid var(--card-border)',
-              color: 'var(--foreground)',
-              padding: '12px',
-              borderRadius: '12px',
-              fontSize: '14px',
-              cursor: 'pointer'
-            }}
-          >
-            Entra come Ospite (Test)
-          </button>
-        )}
-        
         <p style={{ marginTop: '20px', fontSize: '10px', opacity: 0.3 }}>
           Continuando accetti i termini di servizio e la privacy policy.
         </p>
         <div style={{ marginTop: '10px', fontSize: '8px', opacity: 0.2 }}>
-          Debug: {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "Conf_OK" : "Conf_Missing"} 
-          ({process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "No_ID"})
+          Proxy Status: Ready | Persist: {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "OK" : "Missing"}
         </div>
       </div>
     </div>
