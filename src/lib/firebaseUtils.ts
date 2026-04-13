@@ -34,16 +34,20 @@ export const uploadClothingItem = async (
  */
 export const updateProfileAvatar = async (userId: string, imageBlob: Blob) => {
   try {
+    console.log("Inizio upload avatar su Cloudinary...");
     const downloadURL = await uploadToCloudinary(imageBlob);
+    console.log("Upload Cloudinary completato:", downloadURL);
     
     await setDoc(doc(db, 'profiles', userId), {
       body_photo_url: downloadURL,
       updated_at: serverTimestamp()
     }, { merge: true });
-
+    
+    console.log("Firestore aggiornato con nuovo avatar");
     return downloadURL;
-  } catch (error) {
-    console.error("Errore aggiornamento avatar:", error);
+  } catch (error: any) {
+    console.error("Errore critico aggiornamento avatar:", error);
+    alert("Errore caricamento avatar: " + (error.message || "Problema di connessione"));
     throw error;
   }
 };

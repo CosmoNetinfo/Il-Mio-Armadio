@@ -15,30 +15,48 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
   useEffect(() => {
     startCamera();
     return () => stopCamera();
-  }, []);
+  }, [facingMode]);
 
   const startCamera = async () => {
+    stopCamera(); // Ferma il flusso precedente prima di iniziare quello nuovo
     try {
       const s = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' }, 
+        video: { 
+          facingMode: facingMode,
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }, 
         audio: false 
       });
       setStream(s);
-      if (videoRef.current) videoRef.current.srcObject = s;
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        // Importante per iOS: forza il play
+        videoRef.current.play().catch(e => console.error("Auto-play failed", e));
+      }
     } catch (err) {
       console.error("Errore fotocamera:", err);
-      alert("Impossibile accedere alla fotocamera");
+      alert("Impossibile accedere alla fotocamera. Verifica i permessi del browser.");
     }
   };
 
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        stream.removeTrack(track);
+      });
+      setStream(null);
     }
+  };
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
   const capture = () => {
@@ -70,7 +88,10 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
     }}>
       <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ fontSize: '18px', margin: 0 }}>{title}</h3>
-        <X onClick={onClose} size={24} />
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <RefreshCw onClick={toggleCamera} size={24} style={{ cursor: 'pointer', opacity: 0.8 }} />
+          <X onClick={onClose} size={24} style={{ cursor: 'pointer' }} />
+        </div>
       </div>
 
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
