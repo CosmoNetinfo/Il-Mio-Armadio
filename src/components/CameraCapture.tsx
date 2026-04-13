@@ -33,9 +33,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
       const s = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: facingMode,
-          // Massima Risoluzione possibile (4K ideale)
-          width: { ideal: 3840 }, 
-          height: { ideal: 2160 }
+          // Ottimizzato per performance (Full HD invece di 4K)
+          width: { ideal: 1920 }, 
+          height: { ideal: 1080 }
         }, 
         audio: false 
       });
@@ -132,7 +132,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
             setCapturedBlob(blob);
             setCapturedImage(URL.createObjectURL(blob));
           }
-        }, 'image/jpeg', 1.0);
+        }, 'image/jpeg', 0.9);
       }
     }
   };
