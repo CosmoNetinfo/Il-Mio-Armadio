@@ -17,7 +17,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [currentDeviceIdx, setCurrentDeviceIdx] = useState(0);
+  const [showSilhouette, setShowSilhouette] = useState(true);
   
   // Stati per lo Zoom
   const [zoom, setZoom] = useState(1);
@@ -25,22 +27,37 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   const [isNativeZoomSupported, setIsNativeZoomSupported] = useState(false);
 
   useEffect(() => {
-    startCamera();
+    const listDevices = async () => {
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
+      setDevices(videoDevices);
+    };
+    listDevices();
+  }, []);
+
+  useEffect(() => {
+    if (devices.length > 0) {
+      startCamera();
+    }
     return () => stopCamera();
-  }, [facingMode]);
+  }, [currentDeviceIdx, devices]);
 
   const startCamera = async () => {
     stopCamera();
+    const deviceId = devices[currentDeviceIdx]?.deviceId;
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: facingMode,
-          // Ottimizzato per performance (Full HD invece di 4K)
-          width: { ideal: 1920 }, 
-          height: { ideal: 1080 }
-        }, 
+      const constraints: any = { 
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
         audio: false 
-      });
+      };
+      
+      // Aggiungiamo risoluzione ideale
+      if (typeof constraints.video === 'object') {
+        constraints.video.width = { ideal: 1920 };
+        constraints.video.height = { ideal: 1080 };
+      }
+
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
       
       const track = s.getVideoTracks()[0];
       const capabilities: any = track.getCapabilities?.() || {};
@@ -95,7 +112,9 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   };
 
   const toggleCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+    if (devices.length > 0) {
+      setCurrentDeviceIdx(prev => (prev + 1) % devices.length);
+    }
   };
 
   const capture = () => {
@@ -151,6 +170,22 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
       <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ fontSize: '18px', margin: 0 }}>{title}</h3>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          {/* Tasto Trasparenza Silhouette */}
+          <div 
+            onClick={() => setShowSilhouette(!showSilhouette)}
+            style={{ 
+              padding: '6px 12px', 
+              borderRadius: '20px', 
+              border: '1px solid white', 
+              fontSize: '10px', 
+              fontWeight: 'bold',
+              opacity: showSilhouette ? 1 : 0.4,
+              cursor: 'pointer',
+              backgroundColor: showSilhouette ? 'rgba(124, 77, 255, 0.3)' : 'transparent'
+            }}
+          >
+            GUIDA: {showSilhouette ? 'ON' : 'OFF'}
+          </div>
           <RefreshCw onClick={toggleCamera} size={24} style={{ cursor: 'pointer', opacity: 0.8 }} />
           <X onClick={onClose} size={24} style={{ cursor: 'pointer' }} />
         </div>
@@ -173,18 +208,20 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
                 transition: 'transform 0.1s ease-out'
               }} 
             />
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              pointerEvents: 'none'
-            }}>
-              <div style={{ width: '80%', height: '80%', position: 'relative' }}>
-                 {mode === 'avatar' ? <AvatarSilhouette /> : <GarmentSilhouette />}
+            {showSilhouette && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                pointerEvents: 'none'
+              }}>
+                <div style={{ width: '80%', height: '80%', position: 'relative' }}>
+                   {mode === 'avatar' ? <AvatarSilhouette /> : <GarmentSilhouette />}
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Cursore Zoom */}
             <div style={{
