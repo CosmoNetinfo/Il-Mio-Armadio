@@ -22,11 +22,21 @@ export default function Home() {
     hats: [],
     accessories: []
   });
+  
   const [selectedTop, setSelectedTop] = useState(0);
   const [selectedBottom, setSelectedBottom] = useState(0);
   const [selectedShoes, setSelectedShoes] = useState(0);
   const [selectedHat, setSelectedHat] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Stati per il Fitting Interattivo
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [itemConfigs, setItemConfigs] = useState<Record<string, { x: number, y: number, scale: number }>>({
+    hats: { x: 0, y: 0, scale: 1 },
+    tops: { x: 0, y: 0, scale: 1 },
+    bottoms: { x: 0, y: 0, scale: 1 },
+    shoes: { x: 0, y: 0, scale: 1 }
+  });
 
   React.useEffect(() => {
     if (!user) return;
@@ -77,22 +87,75 @@ export default function Home() {
     { key: 'shoes', label: 'Scarpe', state: selectedShoes, setState: setSelectedShoes },
   ];
 
+  const updateScale = (key: string, scale: number) => {
+    setItemConfigs(prev => ({
+      ...prev,
+      [key]: { ...prev[key], scale }
+    }));
+  };
+
   return (
     <div style={{ padding: '0 20px 20px' }}>
       {/* Area Visualizzazione Avatar */}
       <div className="glass" style={{ 
         width: '100%', 
-        height: '450px', 
+        height: '480px', 
         position: 'relative', 
-        overflow: 'hidden',
+        overflow: isEditMode ? 'visible' : 'hidden', // Permette il drag fuori dai bordi in edit
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: '24px'
+        marginBottom: '24px',
+        backgroundColor: '#000',
+        borderRadius: '24px',
+        border: isEditMode ? '2px solid var(--primary)' : '1px solid var(--card-border)'
       }}>
+        
+        {/* Tasto Regola Fitting */}
+        <button 
+          onClick={() => setIsEditMode(!isEditMode)}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 100,
+            padding: '8px 16px',
+            borderRadius: '20px',
+            backgroundColor: isEditMode ? 'var(--primary)' : 'rgba(0,0,0,0.5)',
+            color: 'white',
+            border: 'none',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            backdropFilter: 'blur(10px)'
+          }}
+        >
+          {isEditMode ? <Check size={16} /> : <Plus size={16} />}
+          {isEditMode ? 'Fine Regolazione' : '📐 Regola Fitting'}
+        </button>
+
+        {/* Overlay Istruzioni Edit */}
+        {isEditMode && (
+          <div style={{
+            position: 'absolute',
+            top: '16px',
+            left: '16px',
+            zIndex: 100,
+            fontSize: '10px',
+            opacity: 0.8,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            padding: '4px 8px',
+            borderRadius: '4px'
+          }}>
+            Trascina i capi per posizionarli
+          </div>
+        )}
+
         {/* Avatar Display */}
         {avatarUrl ? (
-          <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'contain', opacity: isEditMode ? 0.5 : 1 }} />
         ) : (
           <div style={{ color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
              <Camera size={48} style={{ marginBottom: '12px' }} />
@@ -100,49 +163,77 @@ export default function Home() {
           </div>
         )}
 
-        {/* Qui verranno renderizzate le immagini sovrapposte (Layering) */}
+        {/* Layering Interattivo */}
         <AnimatePresence>
-          {clothes.hats[selectedHat] && (
-            <motion.img 
-              key={`hat-${selectedHat}`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={clothes.hats[selectedHat].image_url}
-              style={{ position: 'absolute', top: '10%', width: '100px', zIndex: 4 }}
-            />
-          )}
-          {clothes.tops[selectedTop] && (
-            <motion.img 
-              key={`top-${selectedTop}`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={clothes.tops[selectedTop].image_url}
-              style={{ position: 'absolute', top: '20%', width: '150px', zIndex: 3 }}
-            />
-          )}
-          {clothes.bottoms[selectedBottom] && (
-            <motion.img 
-              key={`bottom-${selectedBottom}`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={clothes.bottoms[selectedBottom].image_url}
-              style={{ position: 'absolute', top: '45%', width: '140px', zIndex: 2 }}
-            />
-          )}
-          {clothes.shoes[selectedShoes] && (
-            <motion.img 
-              key={`shoes-${selectedShoes}`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              src={clothes.shoes[selectedShoes].image_url}
-              style={{ position: 'absolute', bottom: '10%', width: '120px', zIndex: 1 }}
-            />
-          )}
+          {categories.map((cat, idx) => {
+            const item = clothes[cat.key][cat.state];
+            if (!item) return null;
+            
+            const config = itemConfigs[cat.key];
+            const baseStyles: Record<string, any> = {
+              hats: { top: '10%', width: '100px', zIndex: 50 },
+              tops: { top: '22%', width: '160px', zIndex: 40 },
+              bottoms: { top: '48%', width: '150px', zIndex: 30 },
+              shoes: { bottom: '12%', width: '130px', zIndex: 20 },
+            };
+
+            return (
+              <motion.img 
+                key={`${cat.key}-${item.id}`}
+                drag={isEditMode}
+                dragMomentum={false}
+                onDragEnd={(_, info) => {
+                  setItemConfigs(prev => ({
+                    ...prev,
+                    [cat.key]: { ...prev[cat.key], x: prev[cat.key].x + info.offset.x, y: prev[cat.key].y + info.offset.y }
+                  }));
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: config.scale,
+                  x: config.x,
+                  y: config.y
+                }}
+                src={item.image_url}
+                style={{ 
+                  position: 'absolute', 
+                  ...baseStyles[cat.key],
+                  cursor: isEditMode ? 'move' : 'default',
+                  touchAction: 'none',
+                  filter: isEditMode ? 'drop-shadow(0 0 10px var(--primary))' : 'none'
+                }}
+              />
+            );
+          })}
         </AnimatePresence>
       </div>
 
+      {/* Controlli di Ridimensionamento in Edit Mode */}
+      {isEditMode && (
+        <div className="glass" style={{ padding: '15px', marginBottom: '20px', animation: 'slideUp 0.3s ease-out' }}>
+          <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '10px', opacity: 0.7 }}>RIDIMENSIONA CAPI</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            {categories.map(cat => (
+              <div key={cat.key} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <span style={{ fontSize: '10px' }}>{cat.label}</span>
+                <input 
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.05"
+                  value={itemConfigs[cat.key].scale}
+                  onChange={(e) => updateScale(cat.key, parseFloat(e.target.value))}
+                  style={{ accentColor: 'var(--primary)' }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Selettore Categorie (Horizontal Carousels) */}
-      {categories.map((cat) => (
+      {!isEditMode && categories.map((cat) => (
         <div key={cat.key} style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '14px', fontWeight: '600', opacity: 0.7 }}>{cat.label}</span>
@@ -150,7 +241,7 @@ export default function Home() {
           </div>
           
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
-            <div className="glass" style={{ 
+            <Link href="/closet/upload" className="glass" style={{ 
               minWidth: '80px', 
               height: '80px', 
               display: 'flex', 
@@ -159,7 +250,7 @@ export default function Home() {
               border: '1px dashed var(--primary)'
             }}>
               <Plus size={24} color="var(--primary)" />
-            </div>
+            </Link>
             
             {clothes[cat.key].map((item: any, idx: number) => (
               <div 
@@ -171,10 +262,11 @@ export default function Home() {
                   borderRadius: '16px',
                   overflow: 'hidden',
                   border: cat.state === idx ? '2px solid var(--primary)' : '1px solid var(--card-border)',
-                  transition: '0.2s'
+                  transition: '0.2s',
+                  backgroundColor: 'rgba(255,255,255,0.02)'
                 }}
               >
-                <img src={item.image_url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={item.image_url} alt={item.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             ))}
           </div>
@@ -182,14 +274,23 @@ export default function Home() {
       ))}
 
       {/* Bottone Salva Outfit */}
-      <button 
-        onClick={handleSaveOutfit}
-        className="primary-button" 
-        style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-      >
-        <Save size={20} />
-        Salva Outfit
-      </button>
+      {!isEditMode && (
+        <button 
+          onClick={handleSaveOutfit}
+          className="primary-button" 
+          style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <Save size={20} />
+          Salva Outfit
+        </button>
+      )}
+
+      <style jsx>{`
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
