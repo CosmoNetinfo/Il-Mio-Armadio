@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
+  signInWithPopup, 
   onAuthStateChanged, 
   signInWithRedirect,
   getRedirectResult,
@@ -59,10 +60,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithRedirect(auth, provider);
-    } catch (error: any) {
-      console.error("Errore login Google:", error);
-      alert("Errore avvio login: " + error.message);
+      setLoading(true);
+      setError(null);
+      // Tentativo principale: Popup (più semplice da gestire)
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      console.error("Popup fallito, provo redirect:", err);
+      // Fallback al redirect se il popup è bloccato o fallisce per altri motivi
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        await signInWithRedirect(auth, provider);
+      } else {
+        setError(`Login Error: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
