@@ -9,7 +9,7 @@ import { saveOutfit } from '@/lib/firebaseUtils';
 
 interface ClothingItem {
   id: string;
-  category: 'tops' | 'bottoms' | 'shoes' | 'accessories';
+  category: 'tops' | 'bottoms' | 'shoes' | 'accessories' | 'hats';
   image_url: string;
 }
 
@@ -19,11 +19,13 @@ export default function Home() {
     tops: [],
     bottoms: [],
     shoes: [],
+    hats: [],
     accessories: []
   });
   const [selectedTop, setSelectedTop] = useState(0);
   const [selectedBottom, setSelectedBottom] = useState(0);
   const [selectedShoes, setSelectedShoes] = useState(0);
+  const [selectedHat, setSelectedHat] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -45,7 +47,7 @@ export default function Home() {
         if (!acc[item.category]) acc[item.category] = [];
         acc[item.category].push(item);
         return acc;
-      }, { tops: [], bottoms: [], shoes: [], accessories: [] } as Record<string, ClothingItem[]>);
+      }, { tops: [], bottoms: [], shoes: [], hats: [], accessories: [] } as Record<string, ClothingItem[]>);
       setClothes(grouped);
     });
 
@@ -57,7 +59,8 @@ export default function Home() {
     const selectedItems = [
       clothes.tops[selectedTop],
       clothes.bottoms[selectedBottom],
-      clothes.shoes[selectedShoes]
+      clothes.shoes[selectedShoes],
+      clothes.hats[selectedHat]
     ].filter(Boolean);
 
     const itemIds = selectedItems.map(item => item.id);
@@ -68,6 +71,7 @@ export default function Home() {
   };
 
   const categories = [
+    { key: 'hats', label: 'Berretti', state: selectedHat, setState: setSelectedHat },
     { key: 'tops', label: 'Maglie', state: selectedTop, setState: setSelectedTop },
     { key: 'bottoms', label: 'Pantaloni', state: selectedBottom, setState: setSelectedBottom },
     { key: 'shoes', label: 'Scarpe', state: selectedShoes, setState: setSelectedShoes },
@@ -98,6 +102,15 @@ export default function Home() {
 
         {/* Qui verranno renderizzate le immagini sovrapposte (Layering) */}
         <AnimatePresence>
+          {clothes.hats[selectedHat] && (
+            <motion.img 
+              key={`hat-${selectedHat}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              src={clothes.hats[selectedHat].image_url}
+              style={{ position: 'absolute', top: '10%', width: '100px', zIndex: 4 }}
+            />
+          )}
           {clothes.tops[selectedTop] && (
             <motion.img 
               key={`top-${selectedTop}`}

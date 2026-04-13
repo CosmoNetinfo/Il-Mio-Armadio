@@ -21,9 +21,10 @@ export default function ClosetPage() {
     'Maglie': 'tops',
     'Pantaloni': 'bottoms',
     'Scarpe': 'shoes',
+    'Berretti': 'hats',
     'Accessori': 'accessories'
   };
-  const categories = ['Tutto', 'Maglie', 'Pantaloni', 'Scarpe', 'Accessori'];
+  const categories = ['Tutto', 'Maglie', 'Pantaloni', 'Scarpe', 'Berretti', 'Accessori'];
 
   React.useEffect(() => {
     if (!user) return;

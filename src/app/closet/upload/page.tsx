@@ -11,6 +11,7 @@ const CATEGORIES = [
   { id: 'tops', label: 'Maglie' },
   { id: 'bottoms', label: 'Pantaloni' },
   { id: 'shoes', label: 'Scarpe' },
+  { id: 'hats', label: 'Berretti' },
   { id: 'accessories', label: 'Accessori' },
 ];
 
