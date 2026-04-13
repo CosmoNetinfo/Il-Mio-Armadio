@@ -1,7 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Save, Camera, RotateCcw } from 'lucide-react';
+import { Plus, Save, Camera, Check, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebaseConfig';
 import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
