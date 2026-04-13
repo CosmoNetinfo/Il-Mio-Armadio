@@ -4,7 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { LogIn } from 'lucide-react';
 
 const AuthOverlay = () => {
-  const { user, loading, loginWithGoogle } = useAuth();
+  const { user, loading, error, loginWithGoogle } = useAuth();
+  const [showDebug, setShowDebug] = React.useState(false);
 
   if (loading) {
     return (
@@ -51,10 +52,25 @@ const AuthOverlay = () => {
       zIndex: 5000,
       textAlign: 'center'
     }}>
-      <div className="glass" style={{ padding: '40px 20px', width: '100%', maxWidth: '400px' }}>
+      <div className="glass" style={{ padding: '40px 20px', width: '100%', maxWidth: '400px', position: 'relative' }}>
         <h2 style={{ fontSize: '28px', marginBottom: '16px' }}>IL MIO <span className="text-gradient">ARMADIO</span></h2>
         <p style={{ opacity: 0.7, marginBottom: '40px' }}>Benvenuto nel tuo guardaroba virtuale. Accedi per salvare i tuoi capi e creare outfit unici.</p>
         
+        {error && (
+          <div style={{ 
+            padding: '12px', 
+            backgroundColor: 'rgba(255, 71, 87, 0.1)', 
+            border: '1px solid #ff4757', 
+            borderRadius: '12px', 
+            color: '#ff4757',
+            fontSize: '12px',
+            marginBottom: '20px',
+            textAlign: 'left'
+          }}>
+            <strong>Errore:</strong> {error}
+          </div>
+        )}
+
         <button 
           onClick={loginWithGoogle}
           className="primary-button" 
@@ -64,12 +80,35 @@ const AuthOverlay = () => {
           Accedi con Google
         </button>
 
+        <button 
+          onClick={() => setShowDebug(!showDebug)}
+          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.3)', fontSize: '10px', textDecoration: 'underline', cursor: 'pointer', marginTop: '10px' }}
+        >
+          {showDebug ? "Nascondi Info Tecnica" : "Mostra Info Tecnica"}
+        </button>
+
+        {showDebug && (
+          <div style={{ 
+            marginTop: '20px', 
+            padding: '10px', 
+            backgroundColor: 'rgba(0,0,0,0.3)', 
+            borderRadius: '8px', 
+            fontSize: '9px', 
+            textAlign: 'left',
+            color: '#aaa',
+            fontFamily: 'monospace',
+            wordBreak: 'break-all'
+          }}>
+            <div>URL: {typeof window !== 'undefined' ? window.location.href : ''}</div>
+            <div>Key: ...{process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.slice(-5)}</div>
+            <div>Domain: {process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}</div>
+            <div>Proxy: /__/auth/ active</div>
+          </div>
+        )}
+
         <p style={{ marginTop: '20px', fontSize: '10px', opacity: 0.3 }}>
           Continuando accetti i termini di servizio e la privacy policy.
         </p>
-        <div style={{ marginTop: '10px', fontSize: '8px', opacity: 0.2 }}>
-          Proxy Status: Ready | Persist: {process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "OK" : "Missing"}
-        </div>
       </div>
     </div>
   );

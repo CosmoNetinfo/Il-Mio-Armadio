@@ -15,6 +15,7 @@ import { auth } from '@/lib/firebaseConfig';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  error: string | null;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // Configura la persistenza locale
@@ -41,17 +43,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setUser(result.user);
             }
           })
-          .catch((error) => {
-            console.error("Errore redirect:", error);
-            if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-              alert("Errore Login: " + error.message);
-            }
+          .catch((err) => {
+            console.error("Errore redirect:", err);
+            setError(`${err.code}: ${err.message}`);
           });
 
         return () => unsubscribe();
       })
-      .catch((error) => {
-        console.error("Errore persistenza:", error);
+      .catch((err) => {
+        console.error("Errore persistenza:", err);
+        setError(`Persist Error: ${err.message}`);
       });
   }, []);
 
@@ -74,7 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );
