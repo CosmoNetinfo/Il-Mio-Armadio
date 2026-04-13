@@ -64,12 +64,19 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
       
       if (capabilities.zoom) {
         setIsNativeZoomSupported(true);
+        const minZ = capabilities.zoom.min || 1;
         setZoomCaps({
-          min: capabilities.zoom.min || 1,
+          min: minZ,
           max: capabilities.zoom.max || 4,
           step: capabilities.zoom.step || 0.1
         });
-        setZoom(capabilities.zoom.min || 1);
+        setZoom(minZ);
+        // Forza lo zoom al minimo all'avvio
+        try {
+          await track.applyConstraints({
+            advanced: [{ zoom: minZ } as any]
+          });
+        } catch (e) { console.warn("Initial zoom apply failed"); }
       } else {
         setIsNativeZoomSupported(false);
         setZoom(1);
