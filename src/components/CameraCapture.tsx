@@ -2,14 +2,16 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, RefreshCw, X, Check } from 'lucide-react';
 import AvatarSilhouette from './AvatarSilhouette';
+import GarmentSilhouette from './GarmentSilhouette';
 
 interface CameraCaptureProps {
   onCapture: (blob: Blob) => void;
   onClose: () => void;
   title: string;
+  mode?: 'avatar' | 'garment';
 }
 
-const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title }) => {
+const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title, mode = 'garment' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -180,7 +182,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
               pointerEvents: 'none'
             }}>
               <div style={{ width: '80%', height: '80%', position: 'relative' }}>
-                 <AvatarSilhouette />
+                 {mode === 'avatar' ? <AvatarSilhouette /> : <GarmentSilhouette />}
               </div>
             </div>
             

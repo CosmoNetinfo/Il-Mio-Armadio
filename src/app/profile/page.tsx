@@ -179,6 +179,7 @@ export default function ProfilePage() {
       {showCamera && (
         <CameraCapture 
           title="Scatta Foto Base (Avatar)"
+          mode="avatar"
           onClose={() => setShowCamera(false)}
           onCapture={handleCapture}
         />
