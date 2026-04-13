@@ -1,6 +1,6 @@
-import { storage, db } from './firebaseConfig';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from './firebaseConfig';
+import { collection, addDoc, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { uploadToCloudinary } from './cloudinary';
 
 export const uploadClothingItem = async (
   userId: string,
@@ -8,12 +8,8 @@ export const uploadClothingItem = async (
   imageBlob: Blob
 ) => {
   try {
-    // 1. Caricamento immagine su Firebase Storage
-    const fileName = `${userId}/${category}_${Date.now()}.png`;
-    const storageRef = ref(storage, `clothes/${fileName}`);
-    
-    const snapshot = await uploadBytes(storageRef, imageBlob);
-    const downloadURL = await getDownloadURL(snapshot.ref);
+    // 1. Caricamento immagine su Cloudinary (GRATUITO, no piano Blaze)
+    const downloadURL = await uploadToCloudinary(imageBlob);
 
     // 2. Salvataggio metadati su Firestore
     const docRef = await addDoc(collection(db, 'clothes'), {
@@ -29,6 +25,25 @@ export const uploadClothingItem = async (
     return docRef.id;
   } catch (error) {
     console.error("Errore durante l'upload:", error);
+    throw error;
+  }
+};
+
+/**
+ * Aggiorna l'avatar del profilo caricando la foto su Cloudinary
+ */
+export const updateProfileAvatar = async (userId: string, imageBlob: Blob) => {
+  try {
+    const downloadURL = await uploadToCloudinary(imageBlob);
+    
+    await setDoc(doc(db, 'profiles', userId), {
+      body_photo_url: downloadURL,
+      updated_at: serverTimestamp()
+    }, { merge: true });
+
+    return downloadURL;
+  } catch (error) {
+    console.error("Errore aggiornamento avatar:", error);
     throw error;
   }
 };

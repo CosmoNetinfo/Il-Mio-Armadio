@@ -4,9 +4,9 @@ import { useAuth } from '@/context/AuthContext';
 import { Camera, LogOut, ChevronLeft, User as UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CameraCapture from '@/components/CameraCapture';
-import { db, storage } from '@/lib/firebaseConfig';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db } from '@/lib/firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
+import { updateProfileAvatar } from '@/lib/firebaseUtils';
 
 export default function ProfilePage() {
   const { user, logout } = useAuth();
@@ -40,15 +40,7 @@ export default function ProfilePage() {
     if (!user) return;
     try {
       setLoading(true);
-      const storageRef = ref(storage, `avatars/${user.uid}.jpg`);
-      await uploadBytes(storageRef, blob);
-      const url = await getDownloadURL(storageRef);
-      
-      await setDoc(doc(db, 'profiles', user.uid), {
-        body_photo_url: url,
-        updated_at: new Date()
-      }, { merge: true });
-      
+      const url = await updateProfileAvatar(user.uid, blob);
       setAvatarUrl(url);
       setShowCamera(false);
     } catch (err) {
