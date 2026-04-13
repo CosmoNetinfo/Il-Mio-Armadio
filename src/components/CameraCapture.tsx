@@ -16,6 +16,11 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  
+  // Stati per lo Zoom
+  const [zoom, setZoom] = useState(1);
+  const [zoomCaps, setZoomCaps] = useState({ min: 1, max: 3, step: 0.1 });
+  const [isNativeZoomSupported, setIsNativeZoomSupported] = useState(false);
 
   useEffect(() => {
     startCamera();
@@ -23,25 +28,56 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   }, [facingMode]);
 
   const startCamera = async () => {
-    stopCamera(); // Ferma il flusso precedente prima di iniziare quello nuovo
+    stopCamera();
     try {
       const s = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 }, // Alziamo la qualità per lo zoom digitale
+          height: { ideal: 1080 }
         }, 
         audio: false 
       });
+      
+      const track = s.getVideoTracks()[0];
+      const capabilities: any = track.getCapabilities?.() || {};
+      
+      if (capabilities.zoom) {
+        setIsNativeZoomSupported(true);
+        setZoomCaps({
+          min: capabilities.zoom.min || 1,
+          max: capabilities.zoom.max || 4,
+          step: capabilities.zoom.step || 0.1
+        });
+        setZoom(capabilities.zoom.min || 1);
+      } else {
+        setIsNativeZoomSupported(false);
+        setZoom(1);
+        setZoomCaps({ min: 1, max: 3, step: 0.1 }); // Fallback digitale
+      }
+
       setStream(s);
       if (videoRef.current) {
         videoRef.current.srcObject = s;
-        // Importante per iOS: forza il play
         videoRef.current.play().catch(e => console.error("Auto-play failed", e));
       }
     } catch (err) {
       console.error("Errore fotocamera:", err);
-      alert("Impossibile accedere alla fotocamera. Verifica i permessi del browser.");
+      alert("Impossibile accedere alla fotocamera. Verifica i permessi.");
+    }
+  };
+
+  const handleZoomChange = async (newZoom: number) => {
+    setZoom(newZoom);
+    if (isNativeZoomSupported && stream) {
+      const track = stream.getVideoTracks()[0];
+      try {
+        await track.applyConstraints({
+          advanced: [{ zoom: newZoom } as any]
+        });
+      } catch (e) {
+        console.warn("Native zoom apply failed, using digital fallback", e);
+      }
     }
   };
 
@@ -63,11 +99,31 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
       if (context) {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0);
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
         
-        canvasRef.current.toBlob((blob) => {
+        // Risoluzione nativa del video
+        const vW = video.videoWidth;
+        const vH = video.videoHeight;
+        
+        canvas.width = vW;
+        canvas.height = vH;
+
+        if (isNativeZoomSupported) {
+          // Se lo zoom è nativo, disegnamo tutto il frame
+          context.drawImage(video, 0, 0, vW, vH);
+        } else {
+          // Se lo zoom è digitale, dobbiamo ritagliare la sorgente
+          const zoomFactor = zoom;
+          const sW = vW / zoomFactor;
+          const sH = vH / zoomFactor;
+          const sX = (vW - sW) / 2;
+          const sY = (vH - sH) / 2;
+          
+          context.drawImage(video, sX, sY, sW, sH, 0, 0, vW, vH);
+        }
+        
+        canvas.toBlob((blob) => {
           if (blob) {
             setCapturedBlob(blob);
             setCapturedImage(URL.createObjectURL(blob));
@@ -101,9 +157,52 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
               ref={videoRef} 
               autoPlay 
               playsInline 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover',
+                // Zoom Digitale visivo (se non supportato nativamente)
+                transform: !isNativeZoomSupported ? `scale(${zoom})` : 'scale(1)',
+                transition: 'transform 0.1s ease-out'
+              }} 
             />
             <AvatarSilhouette />
+            
+            {/* Cursore Zoom */}
+            <div style={{
+              position: 'absolute',
+              bottom: '40px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '200px',
+              backgroundColor: 'rgba(0,0,0,0.4)',
+              padding: '12px 20px',
+              borderRadius: '30px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              zIndex: 10
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '10px', fontWeight: 'bold' }}>
+                <span>1x</span>
+                <span style={{ color: 'var(--primary)' }}>{zoom.toFixed(1)}x</span>
+                <span>{zoomCaps.max}x</span>
+              </div>
+              <input 
+                type="range"
+                min={zoomCaps.min}
+                max={zoomCaps.max}
+                step={zoomCaps.step}
+                value={zoom}
+                onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                style={{
+                  width: '100%',
+                  accentColor: 'var(--primary)',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
           </>
         ) : (
           <img src={capturedImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
