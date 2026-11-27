@@ -5,7 +5,7 @@ import AvatarSilhouette from './AvatarSilhouette';
 import GarmentSilhouette from './GarmentSilhouette';
 
 interface CameraCaptureProps {
-  onCapture: (blob: Blob) => void;
+  onCapture: (blob: Blob) => void | Promise<void>;
   onClose: () => void;
   title: string;
   mode?: 'avatar' | 'garment';
@@ -14,11 +14,14 @@ interface CameraCaptureProps {
 const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title, mode = 'garment' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
-  const [currentDeviceIdx, setCurrentDeviceIdx] = useState(0);
+  const [deviceId, setDeviceId] = useState<string | undefined>();
   const [showSilhouette, setShowSilhouette] = useState(true);
   
   // Stati per lo Zoom
@@ -27,25 +30,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
   const [isNativeZoomSupported, setIsNativeZoomSupported] = useState(false);
 
   useEffect(() => {
-    const listDevices = async () => {
-      const allDevices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
-      setDevices(videoDevices);
-    };
-    listDevices();
-  }, []);
-
-  useEffect(() => {
-    if (devices.length > 0) {
-      startCamera();
-    }
-    return () => stopCamera();
-  }, [currentDeviceIdx, devices]);
-
-  const startCamera = async () => {
-    stopCamera();
-    const deviceId = devices[currentDeviceIdx]?.deviceId;
+    let cancelled = false;
+    let acquired: MediaStream | null = null;
+    setReady(false);
+    setCameraError(null);
+    const startCamera = async () => {
     try {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('camera-unavailable');
       const constraints: any = { 
         video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
         audio: false 
@@ -58,6 +49,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
       }
 
       const s = await navigator.mediaDevices.getUserMedia(constraints);
+      acquired = s;
+      if (cancelled) { s.getTracks().forEach(track => track.stop()); return; }
+      streamRef.current = s;
+      // Request permission first: some browsers hide devices until access is granted.
+      const allDevices = await navigator.mediaDevices.enumerateDevices();
+      if (cancelled) return;
+      setDevices(allDevices.filter(d => d.kind === 'videoinput'));
       
       const track = s.getVideoTracks()[0];
       const capabilities: any = track.getCapabilities?.() || {};
@@ -83,48 +81,67 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
         setZoomCaps({ min: 1, max: 3, step: 0.1 }); // Fallback digitale
       }
 
-      setStream(s);
+      if (cancelled) return;
       if (videoRef.current) {
         videoRef.current.srcObject = s;
-        videoRef.current.play().catch(e => console.error("Auto-play failed", e));
+        await videoRef.current.play();
+        if (!cancelled) setReady(true);
       }
     } catch (err) {
       console.error("Errore fotocamera:", err);
-      alert("Impossibile accedere alla fotocamera. Verifica i permessi.");
+      acquired?.getTracks().forEach(track => track.stop());
+      if (!cancelled) setCameraError('Impossibile accedere alla fotocamera. Verifica i permessi oppure scegli una foto.');
     }
+    };
+    void startCamera();
+    return () => {
+      cancelled = true;
+      acquired?.getTracks().forEach(track => track.stop());
+      if (streamRef.current === acquired) streamRef.current = null;
+    };
+  }, [deviceId]);
+
+  useEffect(() => {
+    if (!capturedImage && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      void videoRef.current.play().catch(() => setReady(false));
+    }
+    return () => { if (capturedImage) URL.revokeObjectURL(capturedImage); };
+  }, [capturedImage]);
+
+  const submit = async () => {
+    if (!capturedBlob || submitting) return;
+    setSubmitting(true);
+    try { await onCapture(capturedBlob); }
+    finally { setSubmitting(false); }
   };
 
   const handleZoomChange = async (newZoom: number) => {
     setZoom(newZoom);
-    if (isNativeZoomSupported && stream) {
-      const track = stream.getVideoTracks()[0];
+    if (isNativeZoomSupported && streamRef.current) {
+      const track = streamRef.current.getVideoTracks()[0];
       try {
         await track.applyConstraints({
           advanced: [{ zoom: newZoom } as any]
         });
       } catch (e) {
-        console.warn("Native zoom apply failed, using digital fallback", e);
+        setIsNativeZoomSupported(false);
+        setZoomCaps({ min: 1, max: 3, step: 0.1 });
+        setZoom(1);
       }
     }
   };
 
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => {
-        track.stop();
-        stream.removeTrack(track);
-      });
-      setStream(null);
-    }
-  };
-
   const toggleCamera = () => {
-    if (devices.length > 0) {
-      setCurrentDeviceIdx(prev => (prev + 1) % devices.length);
+    if (devices.length > 1) {
+      const currentId = streamRef.current?.getVideoTracks()[0]?.getSettings().deviceId;
+      const idx = devices.findIndex(device => device.deviceId === currentId);
+      setDeviceId(devices[(idx + 1) % devices.length].deviceId);
     }
   };
 
   const capture = () => {
+    if (!ready || !videoRef.current?.videoWidth) return;
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
       if (context) {
@@ -193,10 +210,25 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
           >
             GUIDA: {showSilhouette ? 'ON' : 'OFF'}
           </div>
-          <RefreshCw onClick={toggleCamera} size={24} style={{ cursor: 'pointer', opacity: 0.8 }} />
-          <X onClick={onClose} size={24} style={{ cursor: 'pointer' }} />
+          <button type="button" aria-label="Cambia fotocamera" onClick={toggleCamera} disabled={devices.length < 2 || !!capturedImage}><RefreshCw size={24} /></button>
+          <button type="button" aria-label="Chiudi fotocamera" onClick={onClose} disabled={submitting}><X size={24} /></button>
         </div>
       </div>
+
+      {cameraError && <p role="alert" style={{ padding: '12px 20px' }}>{cameraError}</p>}
+      <label style={{ padding: '12px 20px', cursor: 'pointer' }}>
+        Scegli una foto dalla galleria
+        <input type="file" accept="image/*" disabled={submitting} onChange={event => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          if (!file.type.startsWith('image/') || file.size > 20 * 1024 * 1024) {
+            setCameraError('Scegli un’immagine fino a 20 MB.');
+            return;
+          }
+          setCapturedBlob(file);
+          setCapturedImage(URL.createObjectURL(file));
+        }} />
+      </label>
 
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
         {!capturedImage ? (
@@ -267,13 +299,13 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
             </div>
           </>
         ) : (
-          <img src={capturedImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={capturedImage} alt="Anteprima della foto" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         )}
       </div>
 
       <div style={{ padding: '40px 20px', display: 'flex', justifyContent: 'center', gap: '40px', background: 'rgba(0,0,0,0.5)' }}>
         {!capturedImage ? (
-          <div 
+          <button type="button" aria-label="Scatta foto" disabled={!ready}
             onClick={capture}
             style={{ 
               width: '70px', 
@@ -287,18 +319,18 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, onClose, title
             }}
           >
             <div style={{ width: '50px', height: '50px', borderRadius: '50%', border: '2px solid black' }} />
-          </div>
+          </button>
         ) : (
           <>
-            <div onClick={() => setCapturedImage(null)} style={{ padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)' }}>
+            <button type="button" aria-label="Ripeti foto" disabled={submitting} onClick={() => { setCapturedImage(null); setCapturedBlob(null); }} style={{ padding: '15px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.2)' }}>
               <RefreshCw size={30} />
-            </div>
-            <div 
-              onClick={() => capturedBlob && onCapture(capturedBlob)} 
+            </button>
+            <button type="button" disabled={submitting}
+              aria-label="Conferma foto" onClick={submit}
               style={{ padding: '15px', borderRadius: '50%', backgroundColor: 'var(--primary)' }}
             >
               <Check size={30} />
-            </div>
+            </button>
           </>
         )}
       </div>

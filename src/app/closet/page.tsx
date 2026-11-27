@@ -3,9 +3,7 @@ import React from 'react';
 import Header from '@/components/Header';
 import { Plus, Filter, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebaseConfig';
-import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { subscribeWardrobe, deleteClothingItem } from '@/lib/localStorage';
 
 interface ClothingItem {
   id: string;
@@ -14,7 +12,7 @@ interface ClothingItem {
 }
 
 export default function ClosetPage() {
-  const { user } = useAuth();
+  const [error, setError] = React.useState('');
   const [clothes, setClothes] = React.useState<ClothingItem[]>([]);
   const [filter, setFilter] = React.useState('Tutto');
   const categoriesMap: Record<string, string> = {
@@ -27,19 +25,13 @@ export default function ClosetPage() {
   const categories = ['Tutto', 'Maglie', 'Pantaloni', 'Scarpe', 'Berretti', 'Accessori'];
 
   React.useEffect(() => {
-    if (!user) return;
-
-    const q = query(collection(db, 'clothes'), where('user_id', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setClothes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClothingItem)));
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+    return subscribeWardrobe(data => setClothes(data.clothes), () => setError('Impossibile leggere la memoria del dispositivo.'));
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (confirm("Sei sicuro di voler eliminare questo capo?")) {
-      await deleteDoc(doc(db, 'clothes', id));
+      try { await deleteClothingItem(id); }
+      catch { setError('Non è stato possibile eliminare il capo. Riprova.'); }
     }
   };
 
@@ -49,6 +41,7 @@ export default function ClosetPage() {
 
   return (
     <div style={{ padding: '0 20px 20px' }}>
+      {error && <p role="alert">{error}</p>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: '700' }}>Il Mio <span className="text-gradient">Guardaroba</span></h2>
         <div className="glass" style={{ padding: '8px' }}>

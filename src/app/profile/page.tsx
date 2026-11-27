@@ -1,46 +1,32 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect, useRef } from 'react';
 import { Camera, LogOut, ChevronLeft, User as UserIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CameraCapture from '@/components/CameraCapture';
-import { db } from '@/lib/firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
-import { updateProfileAvatar } from '@/lib/firebaseUtils';
-import { removeBackground } from '@imgly/background-removal';
+import { subscribeWardrobe, updateProfileAvatar } from '@/lib/localStorage';
+import { exportBackup } from '@/lib/backup';
 import { Loader2 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
   const router = useRouter();
   const [showCamera, setShowCamera] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const processingRef = useRef(false);
+  const [removeBackdrop, setRemoveBackdrop] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-    }
-  }, [user]);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-    try {
-      const docRef = doc(db, 'profiles', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setAvatarUrl(docSnap.data().body_photo_url);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
+    return subscribeWardrobe(data => {
+      setAvatarUrl(data.avatar);
       setLoading(false);
-    }
-  };
+    }, () => { setLoading(false); alert('Impossibile leggere la memoria del dispositivo.'); });
+  }, []);
 
   const handleCapture = async (blob: Blob) => {
-    if (!user) return;
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setShowCamera(false);
     try {
       setLoading(true);
       setIsProcessing(true);
@@ -52,9 +38,11 @@ export default function ProfilePage() {
         },
       };
 
-      const resultBlob = await removeBackground(blob, config);
+      const resultBlob = removeBackdrop
+        ? await (await import('@imgly/background-removal')).removeBackground(blob, config)
+        : blob;
       
-      const url = await updateProfileAvatar(user.uid, resultBlob);
+      const url = await updateProfileAvatar(resultBlob);
       setAvatarUrl(url);
       setShowCamera(false);
     } catch (err) {
@@ -63,6 +51,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
       setIsProcessing(false);
+      processingRef.current = false;
     }
   };
 
@@ -87,19 +76,18 @@ export default function ProfilePage() {
           overflow: 'hidden',
           border: '2px solid var(--primary)'
         }}>
-          {user?.photoURL ? (
-            <img src={user.photoURL} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
-          ) : (
             <UserIcon size={48} opacity={0.3} />
-          )}
         </div>
-        <h3 style={{ fontSize: '20px', marginBottom: '4px' }}>{user?.displayName || 'Utente'}</h3>
-        <p style={{ fontSize: '14px', opacity: 0.5 }}>{user?.email}</p>
+        <h3 style={{ fontSize: '20px', marginBottom: '4px' }}>Il tuo armadio, su questo dispositivo</h3>
+        <p style={{ fontSize: '14px', opacity: 0.7 }}>Foto e outfit restano nella memoria del browser. Nessun account richiesto.</p>
       </div>
 
       <h3 style={{ fontSize: '18px', marginBottom: '16px', fontWeight: '600' }}>Il Tuo Avatar Base</h3>
+      <label style={{ display: 'block', marginBottom: '16px' }}>
+        <input type="checkbox" disabled={isProcessing} checked={removeBackdrop} onChange={event => setRemoveBackdrop(event.target.checked)} /> Rimuovi sfondo (modello da scaricare al primo utilizzo)
+      </label>
       <p style={{ fontSize: '14px', opacity: 0.7, marginBottom: '20px' }}>
-        Questa  la foto su cui verranno "indossati" i vestiti. Scattala preferibilmente in intimo o abbigliamento molto aderente.
+        Questa è la foto su cui verranno sovrapposti i vestiti. Scegli una foto a figura intera con abbigliamento aderente.
       </p>
 
       <div 
@@ -131,7 +119,7 @@ export default function ProfilePage() {
             backdropFilter: 'blur(5px)'
           }}>
             <Loader2 size={40} className="spin" style={{ color: 'var(--primary)' }} />
-            <p style={{ fontWeight: '600', fontSize: '14px' }}>Rimuovendo lo sfondo...</p>
+            <p style={{ fontWeight: '600', fontSize: '14px' }}>{removeBackdrop ? 'Rimozione sfondo…' : 'Salvataggio sul dispositivo…'}</p>
             <style jsx>{`
               .spin { animation: spin 2s linear infinite; }
               @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -171,9 +159,13 @@ export default function ProfilePage() {
         )}
       </div>
 
-      <button onClick={logout} className="glass" style={{ width: '100%', color: '#ff4b4b', border: '1px solid rgba(255, 75, 75, 0.2)', padding: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-        <LogOut size={20} />
-        Disconnetti
+      <p style={{ marginBottom: '16px', opacity: 0.7 }}>Cancellando i dati del browser perderai il guardaroba. Scarica una copia delle tue foto e dei tuoi outfit.</p>
+      <button onClick={async () => {
+        try {
+          await exportBackup();
+        } catch { alert('Non è stato possibile esportare il guardaroba.'); }
+      }} className="primary-button" style={{ width: '100%' }}>
+        Scarica backup
       </button>
 
       {showCamera && (
