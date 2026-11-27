@@ -1,11 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CameraCapture from '@/components/CameraCapture';
 import { Loader2, CheckCircle2, ChevronLeft } from 'lucide-react';
-import { removeBackground } from '@imgly/background-removal';
-import { useAuth } from '@/context/AuthContext';
-import { uploadClothingItem } from '@/lib/firebaseUtils';
+import { uploadClothingItem } from '@/lib/localStorage';
 
 const CATEGORIES = [
   { id: 'tops', label: 'Maglie' },
@@ -17,13 +15,17 @@ const CATEGORIES = [
 
 export default function UploadPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const [step, setStep] = useState(1); // 1: Category, 2: Camera, 3: Processing, 4: Success
   const [category, setCategory] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const processingRef = useRef(false);
+  const [removeBackdrop, setRemoveBackdrop] = useState(true);
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   const handleCapture = async (blob: Blob) => {
+    if (processingRef.current || !category) return;
+    processingRef.current = true;
     setStep(3);
     setIsProcessing(true);
     try {
@@ -34,21 +36,22 @@ export default function UploadPage() {
         },
       };
 
-      const resultBlob = await removeBackground(blob, config);
+      const resultBlob = removeBackdrop
+        ? await (await import('@imgly/background-removal')).removeBackground(blob, config)
+        : blob;
       const url = URL.createObjectURL(resultBlob);
       setPreviewUrl(url);
       
-      if (user) {
-        await uploadClothingItem(user.uid, category, resultBlob);
-      }
+      await uploadClothingItem(category, resultBlob);
       
       setStep(4);
     } catch (err) {
       console.error("Errore rimozione sfondo:", err);
-      alert("C' stato un errore durante l'elaborazione dell'immagine.");
+      alert("Non è stato possibile elaborare o salvare la foto. Verifica lo spazio disponibile. La rimozione sfondo richiede internet al primo utilizzo.");
       setStep(1);
     } finally {
       setIsProcessing(false);
+      processingRef.current = false;
     }
   };
 
@@ -62,6 +65,10 @@ export default function UploadPage() {
       {step === 1 && (
         <div className="motion-div">
           <p style={{ opacity: 0.7, marginBottom: '20px' }}>Seleziona la categoria del capo che vuoi caricare:</p>
+          <label style={{ display: 'block', marginBottom: '20px' }}>
+            <input type="checkbox" checked={removeBackdrop} onChange={event => setRemoveBackdrop(event.target.checked)} /> Rimuovi sfondo
+            <small style={{ display: 'block', opacity: 0.7 }}>Richiede internet per scaricare il modello al primo utilizzo. Disattiva per salvare la foto originale.</small>
+          </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {CATEGORIES.map((cat) => (
               <div 
@@ -100,7 +107,7 @@ export default function UploadPage() {
           height: '60vh' 
         }}>
           <Loader2 size={48} className="spin" style={{ color: 'var(--primary)', marginBottom: '20px' }} />
-          <h3 style={{ fontSize: '20px', textAlign: 'center' }}>Sto rimuovendo lo sfondo...</h3>
+          <h3 style={{ fontSize: '20px', textAlign: 'center' }}>{removeBackdrop ? 'Sto rimuovendo lo sfondo…' : 'Salvataggio sul dispositivo…'}</h3>
           <p style={{ opacity: 0.6, marginTop: '10px' }}>Questo richiede qualche secondo</p>
           
           <style jsx>{`

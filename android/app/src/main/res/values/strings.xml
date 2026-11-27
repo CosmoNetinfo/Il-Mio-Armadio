@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Il Mio Armadio</string>
+    <string name="title_activity_main">Il Mio Armadio</string>
+    <string name="package_name">info.cosmonet.ilmioarmadio</string>
+    <string name="custom_url_scheme">info.cosmonet.ilmioarmadio</string>
+</resources>

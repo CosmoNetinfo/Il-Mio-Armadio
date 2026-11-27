@@ -1,14 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/__/auth/:path*',
-        destination: 'https://il-mio-armadio.firebaseapp.com/__/auth/:path*',
-      },
-    ];
-  },
+  output: 'export',
+  trailingSlash: true,
+  images: { unoptimized: true },
 };
 
 export default nextConfig;

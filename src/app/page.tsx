@@ -2,10 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Save, Camera, Check, RotateCcw } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebaseConfig';
-import { collection, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
-import { saveOutfit } from '@/lib/firebaseUtils';
+import { saveOutfit, subscribeWardrobe } from '@/lib/localStorage';
 import Link from 'next/link';
 
 interface ClothingItem {
@@ -15,7 +12,6 @@ interface ClothingItem {
 }
 
 export default function Home() {
-  const { user } = useAuth();
   const [clothes, setClothes] = useState<Record<string, ClothingItem[]>>({
     tops: [],
     bottoms: [],
@@ -28,6 +24,9 @@ export default function Home() {
   const [selectedBottom, setSelectedBottom] = useState(0);
   const [selectedShoes, setSelectedShoes] = useState(0);
   const [selectedHat, setSelectedHat] = useState(0);
+  const [selectedAccessory, setSelectedAccessory] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Stati per il Fitting Interattivo
@@ -36,49 +35,45 @@ export default function Home() {
     hats: { x: 0, y: 0, scale: 1 },
     tops: { x: 0, y: 0, scale: 1 },
     bottoms: { x: 0, y: 0, scale: 1 },
-    shoes: { x: 0, y: 0, scale: 1 }
+    shoes: { x: 0, y: 0, scale: 1 },
+    accessories: { x: 0, y: 0, scale: 1 }
   });
 
   useEffect(() => {
-    if (!user) return;
-
-    // Fetch Avatar from Profile
-    const fetchAvatar = async () => {
-      const docSnap = await getDoc(doc(db, 'profiles', user.uid));
-      if (docSnap.exists()) {
-        setAvatarUrl(docSnap.data().body_photo_url);
-      }
-    };
-    fetchAvatar();
-
-    const q = query(collection(db, 'clothes'), where('user_id', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClothingItem));
+    return subscribeWardrobe((data) => {
+      setAvatarUrl(data.avatar);
+      const items = data.clothes;
       const grouped = items.reduce((acc, item) => {
         if (!acc[item.category]) acc[item.category] = [];
-        acc[item.category].push(item);
+        acc[item.category].push(item as ClothingItem);
         return acc;
       }, { tops: [], bottoms: [], shoes: [], hats: [], accessories: [] } as Record<string, ClothingItem[]>);
       setClothes(grouped);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+    }, () => setMessage('Non è stato possibile leggere la memoria del dispositivo.'));
+  }, []);
 
   const handleSaveOutfit = async () => {
-    if (!user) return;
+    if (saving) return;
     const selectedItems = [
-      clothes.tops[selectedTop],
-      clothes.bottoms[selectedBottom],
-      clothes.shoes[selectedShoes],
-      clothes.hats[selectedHat]
+      clothes.tops[Math.min(selectedTop, clothes.tops.length - 1)],
+      clothes.bottoms[Math.min(selectedBottom, clothes.bottoms.length - 1)],
+      clothes.shoes[Math.min(selectedShoes, clothes.shoes.length - 1)],
+      clothes.hats[Math.min(selectedHat, clothes.hats.length - 1)],
+      clothes.accessories[Math.min(selectedAccessory, clothes.accessories.length - 1)]
     ].filter(Boolean);
 
     const itemIds = selectedItems.map(item => item.id);
     const previewUrl = selectedItems[0]?.image_url;
     
-    await saveOutfit(user.uid, "Nuovo Outfit", itemIds, previewUrl);
-    alert("Outfit salvato!");
+    if (!itemIds.length) { setMessage('Aggiungi almeno un capo al guardaroba prima di salvare.'); return; }
+    setSaving(true);
+    setMessage('');
+    try {
+      await saveOutfit('Nuovo Outfit', itemIds, previewUrl, itemConfigs);
+      setMessage('Outfit salvato! Lo trovi nella sezione Outfit.');
+    } catch {
+      setMessage('Salvataggio non riuscito. Controlla lo spazio disponibile sul dispositivo.');
+    } finally { setSaving(false); }
   };
 
   const categories = [
@@ -86,6 +81,7 @@ export default function Home() {
     { key: 'tops', label: 'Maglie', state: selectedTop, setState: setSelectedTop },
     { key: 'bottoms', label: 'Pantaloni', state: selectedBottom, setState: setSelectedBottom },
     { key: 'shoes', label: 'Scarpe', state: selectedShoes, setState: setSelectedShoes },
+    { key: 'accessories', label: 'Accessori', state: selectedAccessory, setState: setSelectedAccessory },
   ];
 
   const updateScale = (key: string, scale: number) => {
@@ -167,7 +163,7 @@ export default function Home() {
         {/* Layering Interattivo */}
         <AnimatePresence>
           {categories.map((cat, idx) => {
-            const item = clothes[cat.key][cat.state];
+            const item = clothes[cat.key][Math.min(cat.state, clothes[cat.key].length - 1)];
             if (!item) return null;
             
             const config = itemConfigs[cat.key];
@@ -176,6 +172,7 @@ export default function Home() {
               tops: { top: '22%', width: '160px', zIndex: 40 },
               bottoms: { top: '48%', width: '150px', zIndex: 30 },
               shoes: { bottom: '12%', width: '130px', zIndex: 20 },
+              accessories: { top: '40%', width: '100px', zIndex: 60 },
             };
 
             return (
@@ -238,7 +235,7 @@ export default function Home() {
         <div key={cat.key} style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
             <span style={{ fontSize: '14px', fontWeight: '600', opacity: 0.7 }}>{cat.label}</span>
-            <span style={{ fontSize: '12px', color: 'var(--primary)' }}>Vedi tutti</span>
+            <Link href="/closet" style={{ fontSize: '12px', color: 'var(--primary)' }}>Vedi tutti</Link>
           </div>
           
           <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '8px' }}>
@@ -278,13 +275,16 @@ export default function Home() {
       {!isEditMode && (
         <button 
           onClick={handleSaveOutfit}
+          disabled={saving}
           className="primary-button" 
           style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
         >
           <Save size={20} />
-          Salva Outfit
+          {saving ? 'Salvataggio…' : 'Salva Outfit'}
         </button>
       )}
+
+      {message && <p role="status" style={{ marginTop: '16px' }}>{message}</p>}
 
       <style jsx>{`
         @keyframes slideUp {

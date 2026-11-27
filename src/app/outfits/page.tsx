@@ -2,41 +2,34 @@
 import React from 'react';
 import Header from '@/components/Header';
 import { Bookmark, Heart, Trash2 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebaseConfig';
-import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { subscribeWardrobe, deleteOutfit } from '@/lib/localStorage';
 
 interface Outfit {
   id: string;
   name: string;
   items: string[];
   preview_url: string;
-  created_at: any;
+  created_at: string;
 }
 
 export default function OutfitsPage() {
-  const { user } = useAuth();
+  const [error, setError] = React.useState('');
   const [outfits, setOutfits] = React.useState<Outfit[]>([]);
 
   React.useEffect(() => {
-    if (!user) return;
-
-    const q = query(collection(db, 'outfits'), where('user_id', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOutfits(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Outfit)));
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+    return subscribeWardrobe(data => setOutfits(data.outfits), () => setError('Impossibile leggere la memoria del dispositivo.'));
+  }, []);
 
   const handleDelete = async (id: string) => {
     if (confirm("Sei sicuro di voler eliminare questo outfit?")) {
-      await deleteDoc(doc(db, 'outfits', id));
+      try { await deleteOutfit(id); }
+      catch { setError('Non è stato possibile eliminare l’outfit. Riprova.'); }
     }
   };
 
   return (
     <div style={{ padding: '0 20px 20px' }}>
+      {error && <p role="alert">{error}</p>}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ fontSize: '24px', fontWeight: '700' }}>I Miei <span className="text-gradient">Outfit</span></h2>
         <div className="glass" style={{ padding: '8px' }}>
@@ -73,7 +66,7 @@ export default function OutfitsPage() {
             <div style={{ flex: 1 }}>
               <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>{outfit.name}</h3>
               <p style={{ fontSize: '14px', opacity: 0.5 }}>
-                Creato il {outfit.created_at?.toDate().toLocaleDateString('it-IT') || '...'}
+                Creato il {new Date(outfit.created_at).toLocaleDateString('it-IT')}
               </p>
               <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                  <div className="glass" style={{ padding: '4px 8px', fontSize: '10px' }}>{outfit.items.length} Capi</div>

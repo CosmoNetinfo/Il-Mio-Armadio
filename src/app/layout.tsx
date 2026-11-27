@@ -1,20 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
-import { AuthProvider } from "@/context/AuthContext";
-import AuthOverlay from "@/components/AuthOverlay";
 
 export const metadata: Metadata = {
   title: "Il Mio Armadio - Virtual Closet",
   description: "Organizza il tuo armadio e prova i vestiti virtualmente",
   manifest: '/manifest.json',
-  themeColor: '#0d0d12',
   icons: {
     icon: '/favicon.png',
     apple: '/favicon.png',
   },
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+};
+
+export const viewport: Viewport = {
+  width: 'device-width', initialScale: 1, themeColor: '#0d0d12', viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -25,14 +25,11 @@ export default function RootLayout({
   return (
     <html lang="it">
       <body>
-        <AuthProvider>
-          <AuthOverlay />
           <Header />
           <main className="app-container">
             {children}
           </main>
           <BottomNav />
-        </AuthProvider>
       </body>
     </html>
   );
